@@ -1,0 +1,441 @@
+# Sublime Fisioterapia: guia completo do frontend
+ 
+Consolida tudo o que foi definido e feito na conversa: decisões, dependências, estrutura de pastas, setup do projeto, passo a passo de implementação e estado atual.
+ 
+## 1. Decisões fechadas
+ 
+| Tema | Decisão |
+|---|---|
+| Linguagem | JavaScript (sem TypeScript) |
+| Build | Vite, template `react` |
+| Estilo | CSS Modules + variáveis CSS em `index.css` (sem Tailwind) |
+| Repositório | Separado do backend: `sublime-fisioterapia-frontend` |
+| Pasta dos módulos | `domain/` no lugar de `features/`. A pasta `shared/` continua existindo, separada |
+| Idioma | Código (classes, atributos, funções, pastas) em inglês; comentários e documentação em português |
+| Time | Todos fazem de tudo, com divisão parcial por módulo |
+ 
+### Por que repositório separado
+ 
+O backend é um projeto Spring Boot com Maven (`pom.xml`, `mvnw`, `src`, `docs`), com 1 commit e 4 branches. Para não reestruturar o backend nem arriscar as branches abertas, o frontend fica em um repositório próprio.
+ 
+| Perda | Como compensar |
+|---|---|
+| Mudança de API e tela em um PR só | Dois PRs ligados, citando um ao outro. O do backend entra primeiro, sem quebrar a compatibilidade |
+| `docs/domain-model.md` só no backend | Manter lá como fonte única e colocar o link no README do front |
+| DTOs duplicados à mão | OpenAPI do backend (springdoc-openapi) como contrato |
+| Convenções em um lado só | `CLAUDE.md` no repositório do front com idioma, estrutura e regra de dependência |
+ 
+Combinados mínimos:
+1. Nomes padronizados: `sublime-fisioterapia-backend` e `sublime-fisioterapia-frontend`.
+2. Contrato da API exposto pelo backend e lido antes de implementar cada tela.
+3. Mesmo nome de branch nos dois repositórios quando a funcionalidade cruza ambos (por exemplo, `feat/consultation-create`).
+4. CORS liberado no Spring só em desenvolvimento, para `http://localhost:5173`.
+5. README do front com o link do backend, a variável `VITE_API_URL` e como subir os dois lados.
+ 
+Reavaliar o monorepo se o vai-e-vem entre dois PRs começar a atrapalhar. A unificação posterior é possível com `git subtree`, preservando o histórico.
+ 
+## 2. Dependências
+ 
+```bash
+npm create vite@latest sublime-frontend -- --template react
+cd sublime-frontend
+ 
+npm i react-router-dom lucide-react react-pro-sidebar
+npm i @tanstack/react-query react-hook-form zod @hookform/resolvers
+npm i axios date-fns decimal.js
+```
+ 
+| Dependência | Para que serve |
+|---|---|
+| `react-router-dom` | Rotas |
+| `lucide-react` | Ícones |
+| `react-pro-sidebar` | Menu lateral (traz o `@emotion/styled` junto) |
+| `@tanstack/react-query` | Cache e invalidação das chamadas à API |
+| `react-hook-form` | Formulários |
+| `zod` | Validação |
+| `@hookform/resolvers` | Liga o Zod ao React Hook Form |
+| `axios` | Cliente HTTP (token e tratamento de 401) |
+| `date-fns` | Datas (`validFrom`/`validTo`, filtros por período) |
+| `decimal.js` | Cálculo preciso com valores monetários |
+ 
+Total: 10 dependências de runtime. O template do Vite já traz `react`, `react-dom`, `vite`, `@vitejs/plugin-react` e ESLint.
+ 
+Pontos de atenção:
+- Confirmar no npm se a versão do `react-pro-sidebar` é compatível com a versão do React instalada (a manutenção dela é irregular).
+- Sem TypeScript, o Zod e o JSDoc compensam a falta de tipos.
+- Alternativas descartadas por ora: Tailwind, shadcn/ui, router e ícones próprios.
+ 
+## 3. Estrutura de pastas
+ 
+```
+src/
+├── main.jsx
+├── index.css                      # variáveis de cor e estilo global
+│
+├── app/                           # casca da aplicação
+│   ├── providers.jsx              # QueryClientProvider, AuthProvider
+│   ├── router.jsx                 # rotas + rotas protegidas
+│   └── layout/
+│       ├── AppLayout.jsx
+│       ├── AppSidebar.jsx
+│       ├── Topbar.jsx
+│       └── navigationItems.js
+│
+├── shared/                        # sem regra de negócio
+│   ├── http/
+│   │   └── httpClient.js          # axios: token e 401
+│   ├── utils/
+│   │   ├── money.js               # formatCurrency (Decimal + Intl)
+│   │   ├── date.js                # formatDate (date-fns)
+│   │   └── masks.js               # CPF, telefone, CEP
+│   └── ui/                        # Button, Card, Input, Select, FormField,
+│                                  # Stepper, Badge, PageHeader, Table, Modal
+│                                  # (cada um com seu .module.css)
+│
+└── domain/                        # um diretório por módulo do backend
+    ├── patient/                   # nível 1
+    ├── pricing/                   # nível 1
+    ├── user/                      # nível 1 (+ context/AuthContext.jsx)
+    ├── provider/                  # nível 2 (depende de user)
+    ├── contract/                  # nível 2 (depende de patient + pricing)
+    └── consultation/              # nível 3 (depende de todos)
+```
+ 
+Dentro de cada domínio: `api/`, `components/`, `schemas/`, `pages/`.
+Extras em `consultation`: `hooks/`, `components/wizard/` e `consultationStatus.js`.
+ 
+### Conteúdo por domínio
+ 
+| Domínio | Principais arquivos |
+|---|---|
+| `patient` | `PatientForm`, `AddressFields`, `PatientTable`, `PatientSearchInput`, `patientSchema.js` |
+| `pricing` | `TechniqueTable`, `PlanTable`, `PriceHistoryTable`, `PriceAdjustmentForm`, `PricingCatalogPage` |
+| `user` | `LoginForm`, `ProtectedRoute`, `AuthContext`, `loginSchema.js`, `LoginPage` |
+| `provider` | `ProviderForm` (inclui percentual de comissão), `ProviderTable` |
+| `contract` | `ContractForm`, `PriceSelector`, `ContractTable`, `contractSchema.js` (exclusive arc) |
+| `consultation` | `ConsultationWizard`, `PatientStep`, `ConfirmationStep`, `SuccessStep`, `ConsultationPreview`, `ConsultationTable`, `ConsultationFilters`, `StatusBadge`, `useConsultationWizard`, `consultationStatus.js` |
+ 
+### Onde fica cada coisa
+ 
+| Local | O que vai lá |
+|---|---|
+| `domain/<modulo>/pages/` | Telas inteiras, uma por rota. Buscam dados e montam componentes |
+| `domain/<modulo>/components/` | Peças que pertencem a um módulo. Recebem dados por props |
+| `shared/ui/` | Peças genéricas, sem regra de negócio |
+| `app/layout/` | Sidebar, topbar e layout geral |
+ 
+### Regras de dependência
+ 
+- `consultation` importa de `contract`, `provider`, `patient`, `pricing` e `user`. Nunca o contrário.
+- `shared/` nunca importa de `domain/`.
+- A camada `app/` pode importar de qualquer domínio.
+- Usado em um domínio só: `domain/<modulo>/components/`. Genérico e sem regra de negócio: `shared/ui/`.
+ 
+### Convenções de nomes
+ 
+- Componentes e pages: `PascalCase.jsx`.
+- Hooks: começam com `use`.
+- Demais arquivos: `camelCase.js`.
+ 
+## 4. O que vai em `domain/<modulo>/api/`
+ 
+Dois tipos de arquivo:
+ 
+| Arquivo | Conteúdo | Conhece |
+|---|---|---|
+| `xxxApi.js` | Funções que chamam o backend, uma por endpoint | `httpClient` |
+| `useXxx.js` | Hooks do TanStack Query | `xxxApi.js` e o React Query |
+ 
+```js
+// domain/patient/api/patientApi.js
+// Chamadas HTTP do módulo patient (uma função por endpoint)
+import { httpClient } from "@/shared/http/httpClient";
+ 
+export async function listPatients(search) {
+  const { data } = await httpClient.get("/patients", { params: { search } });
+  return data;
+}
+ 
+export async function createPatient(payload) {
+  const { data } = await httpClient.post("/patients", payload);
+  return data;
+}
+```
+ 
+```js
+// domain/patient/api/usePatients.js
+// Hooks de leitura (com cache) e escrita (com invalidação)
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { listPatients, createPatient } from "./patientApi";
+ 
+export function usePatients(search) {
+  return useQuery({
+    queryKey: ["patients", search],
+    queryFn: () => listPatients(search),
+  });
+}
+ 
+export function useCreatePatient() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createPatient,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["patients"] }),
+  });
+}
+```
+ 
+Regras:
+- Pages e components usam só os hooks, nunca o `httpClient` direto.
+- Sem JSX e sem regra de negócio nessa pasta.
+- Padronizar as `queryKey` por módulo (`["patients", ...]`, `["consultations", ...]`).
+- Valores monetários trafegam como string e só são formatados em `shared/utils/money.js`.
+- Com o backend atrasado, o `xxxApi.js` pode devolver dados mockados sem afetar o resto.
+ 
+## 5. Tela de Lançamentos (referência do design)
+ 
+A tela tem três camadas, cada uma em um lugar:
+ 
+| Trecho da tela | Componente | Local |
+|---|---|---|
+| Menu lateral e barra superior | `AppSidebar`, `Topbar` | `app/layout/` |
+| Indicador 1 → 2 → 3 | `Stepper` | `shared/ui/` |
+| Busca de paciente por nome ou CPF | `PatientSearchInput` | `domain/patient/components/` |
+| Passos 1, 2 e 3 | `PatientStep`, `ConfirmationStep`, `SuccessStep` | `domain/consultation/components/wizard/` |
+| Painel "Prévia do lançamento" | `ConsultationPreview` | `domain/consultation/components/` |
+| Estado compartilhado entre passos e prévia | `useConsultationWizard` | `domain/consultation/hooks/` |
+ 
+O front envia só `patientId` e `arrivalTime`. O prestador vem do usuário logado, e o backend resolve o contrato e grava o snapshot financeiro (`baseValue`, comissão e repasse). O passo 2 só exibe o resultado para conferência.
+ 
+## 6. Setup do projeto, passo a passo
+ 
+### 6.1 Criar e testar
+ 
+```bash
+npm create vite@latest sublime-frontend -- --template react
+cd sublime-frontend
+npm install
+npm run dev
+```
+ 
+Se a página do template aparecer, está tudo certo.
+ 
+### 6.2 Instalar as dependências
+ 
+Use os comandos da seção 2.
+ 
+### 6.3 Alias `@/`
+ 
+O alias é um atalho que aponta para `src/`. Evita imports como `../../../../shared/ui/Button` e deixa a regra de dependência visível na revisão (`@/domain/patient/...`).
+ 
+```js
+// vite.config.js
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { fileURLToPath, URL } from "node:url";
+ 
+export default defineConfig({
+  plugins: [react()],
+  resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
+});
+```
+ 
+```json
+// jsconfig.json (na raiz, nome exato; reinicie o VS Code depois de criar)
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["src"]
+}
+```
+ 
+| Arquivo | Função |
+|---|---|
+| `vite.config.js` | Faz o projeto compilar e rodar com `@/` |
+| `jsconfig.json` | Faz o editor reconhecer o `@/` (autocomplete e "ir para definição") |
+ 
+### 6.4 Variável de ambiente
+ 
+Na raiz, crie o `.env` (reinicie o `npm run dev` depois de alterar):
+ 
+```
+VITE_API_URL=http://localhost:8080/api
+```
+ 
+### 6.5 Criar as pastas
+ 
+**Git Bash, WSL, Linux ou macOS** (a partir da raiz do projeto):
+ 
+```bash
+cd src
+ 
+# Limpar o template
+rm -rf assets App.css App.jsx
+ 
+# Camadas base
+mkdir -p app/layout
+mkdir -p shared/{http,ui,utils}
+ 
+# Pasta de cada domínio
+for d in patient pricing user provider contract consultation; do
+  mkdir -p domain/$d/{api,components,schemas,pages}
+done
+ 
+# Extras
+mkdir -p domain/user/context
+mkdir -p domain/consultation/{hooks,components/wizard}
+ 
+cd ..
+```
+ 
+**PowerShell:**
+ 
+```powershell
+cd src
+Remove-Item -Recurse -Force assets, App.css, App.jsx
+New-Item -ItemType Directory -Force app/layout, shared/http, shared/ui, shared/utils
+foreach ($d in "patient","pricing","user","provider","contract","consultation") {
+  foreach ($s in "api","components","schemas","pages") {
+    New-Item -ItemType Directory -Force "domain/$d/$s"
+  }
+}
+New-Item -ItemType Directory -Force domain/user/context, domain/consultation/hooks, domain/consultation/components/wizard
+cd ..
+```
+ 
+O `mkdir -p` ignora pastas que já existem. O Git não versiona pastas vazias; para commitar antes de criar arquivos, use `find src -type d -empty -exec touch {}/.gitkeep \;`.
+ 
+### 6.6 Estilo global
+ 
+```css
+/* src/index.css */
+:root {
+  --color-bg: #faf7f0;
+  --color-surface: #ffffff;
+  --color-primary: #5f7a58;
+  --color-primary-soft: #dfe8dc;
+  --color-border: #e5e0d5;
+  --color-text: #374151;
+  --color-muted: #6b7280;
+  --radius: 12px;
+}
+ 
+* { box-sizing: border-box; }
+ 
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: system-ui, sans-serif;
+}
+```
+ 
+### 6.7 `main.jsx` mínimo
+ 
+Como o `App.jsx` é apagado, o `main.jsx` original quebra. Use este para validar React Query e Router:
+ 
+```jsx
+// src/main.jsx
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import "./index.css";
+ 
+const queryClient = new QueryClient();
+ 
+createRoot(document.getElementById("root")).render(
+  <StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <h1>Sublime Fisioterapia</h1>
+      </BrowserRouter>
+    </QueryClientProvider>
+  </StrictMode>
+);
+```
+ 
+Rode `npm run dev`. Se o título aparecer sobre fundo creme, o setup está pronto.
+ 
+### 6.8 Versionar
+ 
+```bash
+git init
+git add .
+git commit -m "chore: initial frontend setup"
+git branch -M main
+git remote add origin <url-do-repositorio>
+git push -u origin main
+```
+ 
+Confira se o `.gitignore` inclui `node_modules` e `dist` (e o `.env`, se tiver dado sensível).
+ 
+## 7. Passo a passo de implementação
+ 
+1. **Criar o projeto e instalar** as dependências.
+2. **Configurar o ambiente:** alias `@/`, `jsconfig.json`, `.env` e CORS no Spring.
+3. **Estilo global e pastas:** variáveis CSS, limpar o template e criar a árvore.
+4. **Camada `shared/`:** `httpClient`, `money`, `date`, `masks` e os componentes de `ui/` usados pela tela de Lançamentos (`Card`, `Button`, `FormField`, `Input`, `Select`, `Stepper`, `Badge`, `PageHeader`).
+5. **Camada `app/`:** providers, router, `AppLayout`, sidebar e topbar. Marco: a casca abre com menu e página vazia.
+6. **Módulo `user`:** login, `AuthContext`, `ProtectedRoute` (pode começar com usuário mock).
+7. **Módulos `patient` e `pricing`:** api, hooks, schema, componentes e pages. Criar já o `PatientSearchInput`.
+8. **Módulos `provider` e `contract`:** o contrato valida o exclusive arc (exatamente um dos dois preços preenchido).
+9. **Módulo `consultation`:** status, api, wizard de 3 passos, prévia e a página de Lançamentos.
+10. **Fechar a Fase 1:** histórico com filtros, lint, build e checklist final.
+ 
+Dica: fazer um módulo por vez, com a tela funcionando de ponta a ponta, em vez de todas as APIs e depois todas as telas.
+ 
+### Checklist final da Fase 1
+ 
+- [ ] Login funcionando e rotas protegidas.
+- [ ] CRUD de `Patient` com endereço e ViaCEP.
+- [ ] Catálogo de `pricing` consultável.
+- [ ] Cadastro de `provider` e `contract`.
+- [ ] Fluxo completo de lançamento (3 passos + prévia).
+- [ ] Histórico de atendimentos com filtro por período.
+- [ ] Valores monetários sempre como string, formatados só na exibição.
+- [ ] Nada com nome em português no código.
+- [ ] `npm run lint` sem erros e `npm run build` gerando o bundle.
+ 
+## 8. Estado atual do projeto
+ 
+Projeto `sublime-app-front` criado e rodando no Vite.
+ 
+| Item | Situação |
+|---|---|
+| `.env`, `vite.config.js`, `jsconfig.json` | Criados na raiz, conforme 6.3 e 6.4 |
+| `.gitignore` | Tem `node_modules` e `dist`. O `.env` não está ignorado |
+| Dependências da seção 2 | Todas instaladas |
+| Árvore de pastas de 6.5 | Criada. Pastas vazias têm `.gitkeep` |
+| Template do Vite (`assets/`, `App.css`, `App.jsx`) | Apagado |
+| `main.jsx` e `index.css` | Trocados pelos conteúdos de 6.6 e 6.7 |
+| `shared/http/httpClient.js` | Escrito. Token no `localStorage` (`getToken`, `setToken`, `clearToken`) e `setUnauthorizedHandler` para o `AuthContext` reagir ao 401 |
+| `shared/utils/money.js` | Escrito: `formatCurrency` |
+| `shared/utils/date.js` | Escrito: `formatDate`, `formatDateTime` |
+| `shared/utils/masks.js` | Escrito: `maskCpf`, `maskPhone`, `maskCep`, `onlyDigits` |
+| `shared/ui/`, `app/` e `domain/` | Só as pastas, sem arquivos |
+| `npm run lint` e `npm run build` | Passando |
+ 
+## 9. Pontos de atenção do modelo
+ 
+- **Nomenclatura:** `repasseValue` está em português. Renomear no backend e no front para algo como `providerPayoutValue`.
+- **"Agendamentos"** aparece no menu do design, mas não existe no mapa de módulos do backend. Deixar o item desabilitado até definir.
+- **Dashboard e Relatórios** são Fase 2. Manter só o item de menu, desabilitado.
+- **Valores monetários** sempre como string vinda da API. O cálculo oficial fica no backend (`BigDecimal`).
+- **Preços historizados:** nunca editar. O reajuste fecha a linha antiga (`validTo`) e abre uma nova.
+- **Exclusive arc** (`groupPlanPriceId` / `groupPlanFrequencyPriceId`): validado no schema Zod do front, com a `CHECK` constraint no banco como garantia final.
+ 
+## 10. Próximos passos
+ 
+- [x] Corrigir o que estava fora do lugar em `shared/`.
+- [x] Rodar os comandos de pastas e limpar o template.
+- [x] Trocar `main.jsx` e `index.css`.
+- [x] Escrever `httpClient.js`, `money.js`, `date.js` e `masks.js`.
+- [ ] Criar os componentes básicos de `shared/ui/` (com `.module.css`).
+- [ ] Montar a casca (`AppLayout`, `AppSidebar`, `Topbar`) e validar o marco.
+- [ ] Criar o `CLAUDE.md` e o README do repositório do front.
+- [ ] Alinhar com o time o contrato OpenAPI e a convenção de branches.
+
+
+- Sempre peça aprovação antes de alterar qualquer coisa
