@@ -17,3 +17,11 @@ body {
   color: var(--color-text);
   font-family: system-ui, sans-serif;
 }
+
+
+#root {
+  display: flex;
+  height: 100vh;
+  justify-content: center;
+  align-items: center;
+}
