@@ -400,17 +400,23 @@ Dica: fazer um módulo por vez, com a tela funcionando de ponta a ponta, em vez 
  
 ## 8. Estado atual do projeto
  
-Projeto `sublime-app-front` criado e rodando no Vite.
+Projeto `sublime-app-front` criado e rodando no Vite. Atualizado em 2026-10-09. O projeto está entre os passos 4 e 5 da seção 7.
  
 | Item | Situação |
 |---|---|
-| `jsconfig.json`, `.env`, `vite.config.js` | Criados na raiz |
-| `src/app/layout/` | Criada |
-| `src/domain/patient/components/` | Criada |
-| `src/shared/` | Criada |
-| `assets/`, `App.css`, `App.jsx` do template | Ainda existem, precisam ser apagados |
-| Demais domínios e subpastas | Faltam (rodar os comandos de 6.5) |
-| `main.jsx` e `index.css` | Trocar pelos conteúdos de 6.6 e 6.7 |
+| `jsconfig.json`, `.env`, `vite.config.js` | Criados na raiz, alias `@/` configurado |
+| Dependências da seção 2 | Todas instaladas (React 19, React Router 7, Zod 4) |
+| `main.jsx` | Pronto. Usa `RouterProvider` (data router) no lugar do `BrowserRouter` de 6.7, com o `QueryClient` criado inline |
+| `index.css` | Variáveis de 6.6 aplicadas. Tem uma regra extra em `#root` que centraliza tudo na tela e precisa sair quando a casca for montada |
+| `app/router.jsx` | Pronto com `createBrowserRouter` e rotas `lazy`: `/login`, `/patients`, `/pricing`, `/providers`, `/contracts`, `/consultations` e `*`. Sem rota index em `/`, sem `ProtectedRoute` e com imports relativos em vez de `@/` |
+| `app/layout/AppLayout.jsx` | Placeholder (título + `Outlet`). Faltam `AppSidebar`, `Topbar`, `navigationItems.js` e `providers.jsx` |
+| `shared/http/httpClient.js` | Pronto: token do `localStorage` (`sublime.authToken`), tratamento de 401 e `setUnauthorizedHandler` à espera do `AuthContext` |
+| `shared/utils/` | `money.js`, `date.js` e `masks.js` prontos |
+| `shared/ui/` | Só `PageLoader` e `RouteError`, ambos com estilo inline em vez de `.module.css`. Faltam os componentes da seção 7, passo 4 |
+| `domain/<modulo>/pages/` | Uma page placeholder por domínio (título + `Outlet`). Faltam `api/`, `components/` e `schemas/` em todos |
+| `src/pages/NotFoundPage.jsx` | Existe fora da estrutura da seção 3. Decidir para onde mover (por exemplo, `app/`) |
+| `assets/`, `App.css`, `App.jsx` do template | Ainda existem, sem uso (nada os importa). Precisam ser apagados |
+| `README.md` | Ainda é o do template do Vite |
  
 ## 9. Pontos de atenção do modelo
  
@@ -423,10 +429,16 @@ Projeto `sublime-app-front` criado e rodando no Vite.
  
 ## 10. Próximos passos
  
-- [ ] Rodar os comandos de pastas e limpar o template (apagar `assets/`, `App.css`, `App.jsx`).
-- [ ] Trocar `main.jsx` e `index.css` e validar com `npm run dev`.
-- [ ] Escrever `httpClient.js`, `money.js`, `date.js` e `masks.js`.
-- [ ] Criar os componentes básicos de `shared/ui/` (com `.module.css`).
-- [ ] Montar a casca (`AppLayout`, `AppSidebar`, `Topbar`) e validar o marco.
-- [ ] Criar o `CLAUDE.md` e o README do repositório do front.
+- [x] Trocar `main.jsx` e `index.css` e validar com `npm run dev`.
+- [x] Escrever `httpClient.js`, `money.js`, `date.js` e `masks.js`.
+- [x] Configurar o data router com rotas `lazy`.
+- [x] Criar o `CLAUDE.md`.
+- [ ] Limpar o template (apagar `assets/`, `App.css`, `App.jsx`) e criar as subpastas que faltam nos domínios.
+- [ ] Ajustar o `router.jsx`: imports com `@/`, rota index em `/` e `Outlet` removido das pages folha.
+- [ ] Remover a centralização de `#root` no `index.css`.
+- [ ] Mover o `NotFoundPage` para dentro da estrutura da seção 3.
+- [ ] Criar os componentes básicos de `shared/ui/` (com `.module.css`) e migrar `PageLoader` e `RouteError` para CSS Modules.
+- [ ] Montar a casca (`providers.jsx`, `AppLayout`, `AppSidebar`, `Topbar`, `navigationItems.js`) e validar o marco.
+- [ ] Módulo `user`: `AuthContext`, `ProtectedRoute` e login, ligando o `setUnauthorizedHandler`.
+- [ ] Escrever o README do repositório do front.
 - [ ] Alinhar com o time o contrato OpenAPI e a convenção de branches.
