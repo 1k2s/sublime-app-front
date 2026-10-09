@@ -407,15 +407,16 @@ Projeto `sublime-app-front` criado e rodando no Vite. Atualizado em 2026-10-09. 
 | `jsconfig.json`, `.env`, `vite.config.js` | Criados na raiz, alias `@/` configurado |
 | Dependências da seção 2 | Todas instaladas (React 19, React Router 7, Zod 4) |
 | `main.jsx` | Pronto. Usa `RouterProvider` (data router) no lugar do `BrowserRouter` de 6.7, com o `QueryClient` criado inline |
-| `index.css` | Variáveis de 6.6 aplicadas. Tem uma regra extra em `#root` que centraliza tudo na tela e precisa sair quando a casca for montada |
-| `app/router.jsx` | Pronto com `createBrowserRouter` e rotas `lazy`: `/login`, `/patients`, `/pricing`, `/providers`, `/contracts`, `/consultations` e `*`. Sem rota index em `/`, sem `ProtectedRoute` e com imports relativos em vez de `@/` |
-| `app/layout/AppLayout.jsx` | Placeholder (título + `Outlet`). Faltam `AppSidebar`, `Topbar`, `navigationItems.js` e `providers.jsx` |
+| `index.css` | Variáveis de 6.6 aplicadas, mais `--color-accent` (barra do item ativo do menu) |
+| `app/router.jsx` | Pronto com `createBrowserRouter`, rotas `lazy` e imports com `@/`: `/login`, `/patients`, `/pricing`, `/providers`, `/contracts`, `/consultations` e `*`. A rota `/` redireciona para `/consultations`. Ainda sem `ProtectedRoute` |
+| `app/layout/` | `AppLayout` (sidebar + conteúdo com rolagem própria), `AppSidebar` (`react-pro-sidebar` + `NavLink`) e `navigationItems.js` prontos. Faltam `Topbar` e `providers.jsx` |
+| Menu lateral | Mostra a união dos menus de admin e prestador. Cada item tem `roles` em `navigationItems.js`, mas o filtro por papel ainda não é aplicado. Dashboard e Configurações estão desabilitados (sem tela). Logo em texto, e usuário e logout fixos até existir o `AuthContext` |
 | `shared/http/httpClient.js` | Pronto: token do `localStorage` (`sublime.authToken`), tratamento de 401 e `setUnauthorizedHandler` à espera do `AuthContext` |
 | `shared/utils/` | `money.js`, `date.js` e `masks.js` prontos |
 | `shared/ui/` | Só `PageLoader` e `RouteError`, ambos com estilo inline em vez de `.module.css`. Faltam os componentes da seção 7, passo 4 |
 | `domain/<modulo>/pages/` | Uma page placeholder por domínio (título + `Outlet`). Faltam `api/`, `components/` e `schemas/` em todos |
 | `src/pages/NotFoundPage.jsx` | Existe fora da estrutura da seção 3. Decidir para onde mover (por exemplo, `app/`) |
-| `assets/`, `App.css`, `App.jsx` do template | Ainda existem, sem uso (nada os importa). Precisam ser apagados |
+| `assets/`, `App.css`, `App.jsx` do template | Apagados. Resta `public/icons.svg`, sem uso |
 | `README.md` | Ainda é o do template do Vite |
  
 ## 9. Pontos de atenção do modelo
@@ -433,12 +434,16 @@ Projeto `sublime-app-front` criado e rodando no Vite. Atualizado em 2026-10-09. 
 - [x] Escrever `httpClient.js`, `money.js`, `date.js` e `masks.js`.
 - [x] Configurar o data router com rotas `lazy`.
 - [x] Criar o `CLAUDE.md`.
-- [ ] Limpar o template (apagar `assets/`, `App.css`, `App.jsx`) e criar as subpastas que faltam nos domínios.
-- [ ] Ajustar o `router.jsx`: imports com `@/`, rota index em `/` e `Outlet` removido das pages folha.
-- [ ] Remover a centralização de `#root` no `index.css`.
+- [x] Limpar o template (apagar `assets/`, `App.css`, `App.jsx`).
+- [x] Ajustar o `router.jsx`: imports com `@/`, rota index em `/` e `Outlet` removido das pages folha.
+- [x] Remover a centralização de `#root` no `index.css`.
+- [x] Montar `AppLayout`, `AppSidebar` e `navigationItems.js`.
+- [ ] Criar as subpastas que faltam nos domínios.
+- [ ] Sidebar: trocar a logo em texto pelo arquivo da marca e filtrar os itens por papel (`roles`) quando houver usuário logado.
+- [ ] Definir as telas de Dashboard e Configurações e o lugar de Prestadores no menu (a rota `/providers` existe, mas não está no design).
 - [ ] Mover o `NotFoundPage` para dentro da estrutura da seção 3.
 - [ ] Criar os componentes básicos de `shared/ui/` (com `.module.css`) e migrar `PageLoader` e `RouteError` para CSS Modules.
-- [ ] Montar a casca (`providers.jsx`, `AppLayout`, `AppSidebar`, `Topbar`, `navigationItems.js`) e validar o marco.
+- [ ] Completar a casca (`providers.jsx` e `Topbar`, se o design tiver barra superior).
 - [ ] Módulo `user`: `AuthContext`, `ProtectedRoute` e login, ligando o `setUnauthorizedHandler`.
 - [ ] Escrever o README do repositório do front.
 - [ ] Alinhar com o time o contrato OpenAPI e a convenção de branches.
